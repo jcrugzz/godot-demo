@@ -6,7 +6,12 @@ var godot = require('godot');
 var port = +process.argv.slice(2)[0] || 8080;
 
 var client = godot.createClient({
-  type: 'tcp'
+  type: 'tcp',
+  reconnect: {}
+});
+
+client.on('reconnect', function () {
+  console.log('attempting reconnect');
 });
 
 client.on('error', function (err) {
@@ -19,12 +24,18 @@ http.createServer(function (req, res) {
   var stream;
 
   if (req.url === '/') {
+    client.produce({
+      host: 'localhost:' + port,
+      service: 'demo/log',
+      description: 'we hit the root endpoint!'
+    });
     stream = fs.createReadStream('plain.txt');
     stream.pipe(res);
     return;
   }
   if (req.url === '/random') {
     client.produce({
+      host: 'localhost:' + port,
       service: 'demo/log',
       description: 'we hit the random endpoint'
     })
@@ -33,6 +44,16 @@ http.createServer(function (req, res) {
     setTimeout(function () {
       res.end();
     }, 10000);
+    return;
+  }
+
+  if (req.url === '/sendback') {
+    client.produce({
+      host: 'localhost:' + port,
+      service: 'demo/log',
+      description: 'we hit the sendback endpoint!'
+    })
+    req.pipe(res);
     return;
   }
   // If we do not have a route for this then just end
